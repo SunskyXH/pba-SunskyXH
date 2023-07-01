@@ -45,6 +45,19 @@ Eigen::Vector2f time_integration_implicit(const Eigen::Vector2f& p0, float dt){
   return A.inverse()*b;
 }
 
+
+Eigen::Vector2f time_integration_second_order(const Eigen::Vector2f& p0, float dt){
+  const float r0 = p0.x();
+  const float v0 = p0.y();
+  const float dfdr = 2.f/(r0*r0*r0);
+  float f0 = -1.0f / (r0*r0);
+  Eigen::Matrix2f A;
+  Eigen::Vector2f b;
+  A << 1.f, -dt * 0.5f, -dfdr * dt * 0.5f, 1.f;
+  b << r0 + v0 * dt * 0.5f, v0 + (f0 - dfdr * r0 * 0.5f)*dt;
+  return A.inverse()*b;
+}
+
 /**
  * reflecting ball at the ground
  * @param p0 input radius and its velocity
@@ -76,7 +89,8 @@ int main()
   float dt = 0.04f; // time step
   Eigen::Vector2f phase_explicit(0.7f, 0.f);
   Eigen::Vector2f phase_implicit(0.7f, 0.f);
-  std::vector<Eigen::Vector2f> history_explicit, history_implicit;
+  Eigen::Vector2f phase_second_order(0.7f, 0.f);
+  std::vector<Eigen::Vector2f> history_explicit, history_implicit, history_second_order;
 
   while ( !::glfwWindowShouldClose(window) )
   {
@@ -88,10 +102,16 @@ int main()
 
       phase_implicit = time_integration_implicit(phase_implicit, dt);
       phase_implicit = reflection(phase_implicit);
+
+      phase_second_order = time_integration_second_order(phase_second_order, dt);
+      phase_second_order = reflection(phase_second_order);
+
       time += dt;
+
 
       history_explicit.emplace_back(phase_explicit.x(), time);
       history_implicit.emplace_back(phase_implicit.x(), time);
+      history_second_order.emplace_back(phase_second_order.x(), time);
     }
 
     // -----------------------
@@ -104,6 +124,9 @@ int main()
     ::glColor3d(1.0, 0.0, 0.0);
     pba::draw_circle_solid(phase_implicit.x() * std::cos(time), phase_implicit.x() * std::sin(time), 0.05f);
     draw_polyline(history_implicit);
+    ::glColor3d(1.0, 0.0, 1.0);
+    pba::draw_circle_solid(phase_second_order.x() * std::cos(time), phase_second_order.x() * std::sin(time), 0.05f);
+    draw_polyline(history_second_order);
     ::glColor3d(0.0, 1.0, 0.0);
     pba::draw_circle_wireframe(0.f, 0.f, 0.5f);
 
